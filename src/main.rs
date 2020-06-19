@@ -5,7 +5,12 @@ fn main() {
     let board = board::create();
     let mut pieces = piece::generate_all();
 
-    pieces.push(piece::build("Pawn", "Black", ('B', 3), -10));
+    pieces.push(piece::build(
+        piece::Types::Pawn,
+        piece::Sides::Black,
+        ('B', 3),
+        -10,
+    ));
 
     println!("{:?}", pieces[8].legal_moves(&pieces));
 }
@@ -30,7 +35,12 @@ mod tests {
     fn a_pawn_can_capture_diagnally() {
         let mut pieces = piece::generate_all();
 
-        pieces.push(piece::build("Pawn", "Black", ('B', 3), -10));
+        pieces.push(piece::build(
+            piece::Types::Pawn,
+            piece::Sides::Black,
+            ('B', 3),
+            -10,
+        ));
 
         assert!(pieces[8].legal_moves(&pieces) == [('A', 3, 0), ('A', 4, 0), ('B', 3, 0)]);
     }
@@ -38,7 +48,7 @@ mod tests {
     #[test]
     fn a_rook_in_middle_of_board_at_start_of_game_can_move() {
         let pieces = piece::generate_all();
-        let rook = piece::build("Rook", "White", ('E', 4), 50);
+        let rook = piece::build(piece::Types::Rook, piece::Sides::White, ('E', 4), 50);
         assert!(
             rook.legal_moves(&pieces)
                 == [
@@ -60,7 +70,7 @@ mod tests {
     #[test]
     fn a_bishop_in_middle_of_board_at_start_of_game_can_move() {
         let pieces = piece::generate_all();
-        let bishop = piece::build("Bishop", "White", ('E', 6), 35);
+        let bishop = piece::build(piece::Types::Bishop, piece::Sides::White, ('E', 6), 35);
         assert!(
             bishop.legal_moves(&pieces)
                 == [
@@ -80,9 +90,14 @@ mod tests {
     fn a_rook_should_take_an_unprotected_queen_if_no_checkmate_available() {
         let mut pieces = piece::generate_all();
 
-        pieces.push(piece::build("Queen", "Black", ('B', 4), 125));
+        pieces.push(piece::build(
+            piece::Types::Queen,
+            piece::Sides::Black,
+            ('B', 4),
+            125,
+        ));
 
-        let rook = piece::build("Rook", "White", ('E', 4), 50);
+        let rook = piece::build(piece::Types::Rook, piece::Sides::White, ('E', 4), 50);
 
         let moves = rook.legal_moves(&pieces);
 

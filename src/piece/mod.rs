@@ -2,21 +2,37 @@ use std::cmp::Ordering;
 use std::convert::TryInto;
 
 #[derive(Debug)]
-pub struct Piece<'a> {
-    pub _type: &'a str,
+pub struct Piece {
+    pub _type: Types,
     pub has_moved: bool,
-    pub side: &'a str,
+    pub side: Sides,
     pub location: (char, u32),
     pub value: i32,
 }
 
-impl Piece<'_> {
-    pub fn legal_moves<'a>(&self, pieces: &Vec<Piece>) -> Vec<(char, u32, i32)> {
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Types {
+    Pawn,
+    Rook,
+    Bishop,
+    Knight,
+    Queen,
+    King,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Sides {
+    White,
+    Black,
+}
+
+impl Piece {
+    pub fn legal_moves(&self, pieces: &Vec<Piece>) -> Vec<(char, u32, i32)> {
         let (col, row) = &self.location;
         let mut moves: Vec<(char, u32, i32)> = Vec::new();
 
         match self._type {
-            "Rook" => {
+            Types::Rook => {
                 moves = self.legal_forward_moves(*row + 1, 9, moves, pieces, &col, true);
                 moves = self.legal_backward_moves(
                     if *row - 1 > 0 { *row } else { 0 },
@@ -48,7 +64,7 @@ impl Piece<'_> {
                     true,
                 );
             }
-            "Pawn" => {
+            Types::Pawn => {
                 let from_row = *row + 1;
                 let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
 
@@ -75,7 +91,7 @@ impl Piece<'_> {
                     true,
                 );
             }
-            "Bishop" => {
+            Types::Bishop => {
                 let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
                 let current_col_index = cols.iter().position(|&c| c == *col).unwrap();
 
@@ -115,25 +131,24 @@ impl Piece<'_> {
                     true,
                 );
             }
-            "Queen" => {
+            Types::Queen => {
                 let from_row = *row + 1;
                 let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
 
                 moves = self.legal_forward_moves(from_row, to_row, moves, pieces, &col, false)
             }
-            "King" => {
+            Types::King => {
                 let from_row = *row + 1;
                 let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
 
                 moves = self.legal_forward_moves(from_row, to_row, moves, pieces, &col, false)
             }
-            "Knight" => {
+            Types::Knight => {
                 let from_row = *row + 1;
                 let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
 
                 moves = self.legal_forward_moves(from_row, to_row, moves, pieces, &col, false)
             }
-            &_ => (),
         }
         moves
     }
@@ -358,7 +373,7 @@ impl Piece<'_> {
                     }
                 }
             }
-            if !blocked && !capture && (self._type != "Pawn") {
+            if !blocked && !capture && (self._type != Types::Pawn) {
                 // a pawn must capture if going diagnally
                 moves.push((cols[step as usize], row + running_total, 0));
             } else if capture {
@@ -459,7 +474,7 @@ impl Piece<'_> {
                     }
                 }
             }
-            if !blocked && !capture && (self._type != "Pawn") {
+            if !blocked && !capture && (self._type != Types::Pawn) {
                 // a pawn must capture if going diagnally
                 moves.push((cols[step as usize], row + running_total, 0));
             } else if capture {
@@ -525,7 +540,7 @@ impl Piece<'_> {
     }
 }
 
-pub fn build<'a>(_type: &'a str, side: &'a str, location: (char, u32), value: i32) -> Piece<'a> {
+pub fn build(_type: Types, side: Sides, location: (char, u32), value: i32) -> Piece {
     Piece {
         _type,
         has_moved: false,
@@ -535,43 +550,43 @@ pub fn build<'a>(_type: &'a str, side: &'a str, location: (char, u32), value: i3
     }
 }
 
-pub fn generate_all<'a>() -> Vec<Piece<'a>> {
+pub fn generate_all() -> Vec<Piece> {
     let mut pieces: Vec<Piece> = Vec::new();
-    let pieces_data: Vec<(&str, &str, (char, u32), i32)> = vec![
+    let pieces_data: Vec<(Types, Sides, (char, u32), i32)> = vec![
         // White
-        ("Rook", "White", ('A', 1), 50),
-        ("Knight", "White", ('B', 1), 35),
-        ("Bishop", "White", ('C', 1), 35),
-        ("Queen", "White", ('D', 1), 125),
-        ("King", "White", ('E', 1), 200),
-        ("Knight", "White", ('F', 1), 35),
-        ("Bishop", "White", ('G', 1), 30),
-        ("Rook", "White", ('H', 1), 50),
-        ("Pawn", "White", ('A', 2), 10),
-        ("Pawn", "White", ('B', 2), 10),
-        ("Pawn", "White", ('C', 2), 10),
-        ("Pawn", "White", ('D', 2), 10),
-        ("Pawn", "White", ('E', 2), 10),
-        ("Pawn", "White", ('F', 2), 10),
-        ("Pawn", "White", ('G', 2), 10),
-        ("Pawn", "White", ('H', 2), 10),
+        (Types::Rook, Sides::White, ('A', 1), 50),
+        (Types::Knight, Sides::White, ('B', 1), 35),
+        (Types::Bishop, Sides::White, ('C', 1), 35),
+        (Types::Queen, Sides::White, ('D', 1), 125),
+        (Types::King, Sides::White, ('E', 1), 200),
+        (Types::Knight, Sides::White, ('F', 1), 35),
+        (Types::Bishop, Sides::White, ('G', 1), 30),
+        (Types::Rook, Sides::White, ('H', 1), 50),
+        (Types::Pawn, Sides::White, ('A', 2), 10),
+        (Types::Pawn, Sides::White, ('B', 2), 10),
+        (Types::Pawn, Sides::White, ('C', 2), 10),
+        (Types::Pawn, Sides::White, ('D', 2), 10),
+        (Types::Pawn, Sides::White, ('E', 2), 10),
+        (Types::Pawn, Sides::White, ('F', 2), 10),
+        (Types::Pawn, Sides::White, ('G', 2), 10),
+        (Types::Pawn, Sides::White, ('H', 2), 10),
         // Black
-        ("Rook", "Black", ('A', 8), -50),
-        ("Knight", "Black", ('B', 8), -35),
-        ("Bishop", "Black", ('C', 8), -35),
-        ("Queen", "Black", ('D', 8), -125),
-        ("King", "Black", ('E', 8), -200),
-        ("Knight", "Black", ('F', 8), -35),
-        ("Bishop", "Black", ('G', 8), -30),
-        ("Rook", "Black", ('H', 8), -50),
-        ("Pawn", "Black", ('A', 7), -10),
-        ("Pawn", "Black", ('B', 7), -10),
-        ("Pawn", "Black", ('C', 7), -10),
-        ("Pawn", "Black", ('D', 7), -10),
-        ("Pawn", "Black", ('E', 7), -10),
-        ("Pawn", "Black", ('F', 7), -10),
-        ("Pawn", "Black", ('G', 7), -10),
-        ("Pawn", "Black", ('H', 7), -10),
+        (Types::Rook, Sides::Black, ('A', 8), -50),
+        (Types::Knight, Sides::Black, ('B', 8), -35),
+        (Types::Bishop, Sides::Black, ('C', 8), -35),
+        (Types::Queen, Sides::Black, ('D', 8), -125),
+        (Types::King, Sides::Black, ('E', 8), -200),
+        (Types::Knight, Sides::Black, ('F', 8), -35),
+        (Types::Bishop, Sides::Black, ('G', 8), -30),
+        (Types::Rook, Sides::Black, ('H', 8), -50),
+        (Types::Pawn, Sides::Black, ('A', 7), -10),
+        (Types::Pawn, Sides::Black, ('B', 7), -10),
+        (Types::Pawn, Sides::Black, ('C', 7), -10),
+        (Types::Pawn, Sides::Black, ('D', 7), -10),
+        (Types::Pawn, Sides::Black, ('E', 7), -10),
+        (Types::Pawn, Sides::Black, ('F', 7), -10),
+        (Types::Pawn, Sides::Black, ('G', 7), -10),
+        (Types::Pawn, Sides::Black, ('H', 7), -10),
     ];
     for piece in pieces_data.iter() {
         let (_type, side, location, value) = piece;
