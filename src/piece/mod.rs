@@ -1,3 +1,6 @@
+#[path = "../board/mod.rs"]
+pub mod board;
+
 use std::cmp::Ordering;
 use std::convert::TryInto;
 
@@ -33,46 +36,18 @@ impl Piece {
 
         match self._type {
             Types::Rook => {
-                moves = self.legal_forward_moves(*row + 1, 9, moves, pieces, *col, true);
-                moves = self.legal_backward_moves(
-                    if *row - 1 > 0 { *row } else { 0 },
-                    0,
-                    moves,
-                    pieces,
-                    *col,
-                    true,
-                );
-
-                let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-                let current_col_index = cols.iter().position(|&c| c == *col).unwrap();
-
-                moves = self.legal_left_to_right_moves(
-                    current_col_index.try_into().unwrap(),
-                    7,
-                    moves,
-                    pieces,
-                    *row,
-                    true,
-                );
-
-                moves = self.legal_right_to_left_moves(
-                    current_col_index.try_into().unwrap(),
-                    0,
-                    moves,
-                    pieces,
-                    *row,
-                    true,
-                );
+                moves = self.legal_forward_moves(moves, pieces, true);
+                moves = self.legal_backward_moves(moves, pieces, true);
+                moves = self.legal_left_to_right_moves(moves, pieces, true);
+                moves = self.legal_right_to_left_moves(moves, pieces, true);
             }
             Types::Pawn => {
-                let from_row = *row + 1;
-                let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
-
-                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, *col, false);
+                moves = self.legal_forward_moves(moves, pieces, false);
 
                 let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
                 let current_col_index = cols.iter().position(|&c| c == *col).unwrap();
                 let index = current_col_index.try_into().unwrap();
+
                 moves = self.legal_diag_right_to_left_moves(
                     index,
                     if index > 0 { index - 1 } else { index },
@@ -131,38 +106,32 @@ impl Piece {
                     true,
                 );
             }
-            Types::Queen => {
-                let from_row = *row + 1;
-                let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
-
-                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, *col, false)
-            }
-            Types::King => {
-                let from_row = *row + 1;
-                let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
-
-                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, *col, false)
-            }
-            Types::Knight => {
-                let from_row = *row + 1;
-                let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
-
-                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, *col, false)
-            }
+            Types::Queen => moves = self.legal_forward_moves(moves, pieces, false),
+            Types::King => moves = self.legal_forward_moves(moves, pieces, false),
+            Types::Knight => moves = self.legal_forward_moves(moves, pieces, false),
         }
         moves
     }
 
     pub fn legal_forward_moves(
         &self,
-        from: u32,
-        to: u32,
         mut moves: Vec<(char, u32, i32)>,
         pieces: &[Piece],
-        col: char,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
-        for step in from..to {
+        let (col, row) = &self.location;
+        let to_row: u32 = match &self._type {
+            Types::Pawn => {
+                if self.has_moved {
+                    row + 2
+                } else {
+                    row + 3
+                }
+            }
+            Types::King => row + 2,
+            _ => 9,
+        };
+        for step in row + 1..to_row {
             // check if another piece exists
             // if friendly, blocked
             // if enemy, could capture (if not pawn) and is blocked
@@ -172,7 +141,7 @@ impl Piece {
             let mut captured_score: i32 = 0;
             for piece in pieces.iter() {
                 let (piece_col, piece_row) = piece.location;
-                if piece_col == col && piece_row == step {
+                if piece_col == *col && piece_row == step {
                     if piece.side == self.side || !can_capture {
                         // friendly, blocked or can't capture and blocked
                         blocked = true;
@@ -186,9 +155,9 @@ impl Piece {
                 }
             }
             if !blocked && !capture {
-                moves.push((col, step, 0));
+                moves.push((*col, step, 0));
             } else if capture {
-                moves.push((col, step, captured_score));
+                moves.push((*col, step, captured_score));
                 break;
             } else {
                 break;
@@ -200,14 +169,13 @@ impl Piece {
 
     pub fn legal_backward_moves(
         &self,
-        from: u32,
-        to: u32,
         mut moves: Vec<(char, u32, i32)>,
         pieces: &[Piece],
-        col: char,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
-        for step in (to..from).rev() {
+        let (col, row) = &self.location;
+        let to_row: u32 = if *row - 1 > 0 { *row } else { 0 };
+        for step in (0..to_row).rev() {
             // check if another piece exists
             // if friendly, blocked
             // if enemy, could capture (if not pawn) and is blocked
@@ -217,7 +185,7 @@ impl Piece {
             let mut captured_score: i32 = 0;
             for piece in pieces.iter() {
                 let (piece_col, piece_row) = piece.location;
-                if piece_col == col && piece_row == step {
+                if piece_col == *col && piece_row == step {
                     if piece.side == self.side || !can_capture {
                         // friendly, blocked or can't capture and blocked
                         blocked = true;
@@ -231,9 +199,9 @@ impl Piece {
                 }
             }
             if !blocked && !capture {
-                moves.push((col, step, 0));
+                moves.push((*col, step, 0));
             } else if capture {
-                moves.push((col, step, captured_score));
+                moves.push((*col, step, captured_score));
                 break;
             } else {
                 break;
@@ -245,17 +213,25 @@ impl Piece {
 
     pub fn legal_left_to_right_moves(
         &self,
-        from: u32,
-        to: u32,
         mut moves: Vec<(char, u32, i32)>,
         pieces: &[Piece],
-        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
-        let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        let start = if from < 8 { from + 1 } else { from };
+        let (col, row) = &self.location;
 
-        for step in start..to + 1 {
+        let cols: Vec<char> = board::cols();
+
+        let current_col_index = cols.iter().position(|&c| c == *col).unwrap();
+
+        let unwraped_index = current_col_index.try_into().unwrap(); // This feels yucky
+
+        let start = if unwraped_index < 8 {
+            unwraped_index + 1
+        } else {
+            unwraped_index
+        };
+
+        for step in start..8 {
             // check if another piece exists
             // if friendly, blocked
             // if enemy, could capture (if not pawn) and is blocked
@@ -265,7 +241,7 @@ impl Piece {
             let mut captured_score: i32 = 0;
             for piece in pieces.iter() {
                 let (piece_col, piece_row) = piece.location;
-                if piece_col == cols[step as usize] && piece_row == row {
+                if piece_col == cols[step as usize] && piece_row == *row {
                     if piece.side == self.side || !can_capture {
                         // friendly, blocked or can't capture and blocked
                         blocked = true;
@@ -279,9 +255,9 @@ impl Piece {
                 }
             }
             if !blocked && !capture {
-                moves.push((cols[step as usize], row, 0));
+                moves.push((cols[step as usize], *row, 0));
             } else if capture {
-                moves.push((cols[step as usize], row, captured_score));
+                moves.push((cols[step as usize], *row, captured_score));
                 break;
             } else {
                 break;
@@ -293,15 +269,19 @@ impl Piece {
 
     pub fn legal_right_to_left_moves(
         &self,
-        from: u32,
-        to: u32,
         mut moves: Vec<(char, u32, i32)>,
         pieces: &[Piece],
-        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
-        let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        for step in (to..from).rev() {
+        let (col, row) = &self.location;
+
+        let cols: Vec<char> = board::cols();
+
+        let current_col_index = cols.iter().position(|&c| c == *col).unwrap();
+
+        let unwraped_index = current_col_index.try_into().unwrap(); // This feels yucky
+
+        for step in (0..unwraped_index).rev() {
             // check if another piece exists
             // if friendly, blocked
             // if enemy, could capture (if not pawn) and is blocked
@@ -311,7 +291,7 @@ impl Piece {
             let mut captured_score: i32 = 0;
             for piece in pieces.iter() {
                 let (piece_col, piece_row) = piece.location;
-                if piece_col == cols[step as usize] && piece_row == row {
+                if piece_col == cols[step as usize] && piece_row == *row {
                     if piece.side == self.side || !can_capture {
                         // friendly, blocked or can't capture and blocked
                         blocked = true;
@@ -325,9 +305,9 @@ impl Piece {
                 }
             }
             if !blocked && !capture {
-                moves.push((cols[step as usize], row, 0));
+                moves.push((cols[step as usize], *row, 0));
             } else if capture {
-                moves.push((cols[step as usize], row, captured_score));
+                moves.push((cols[step as usize], *row, captured_score));
                 break;
             } else {
                 break;
