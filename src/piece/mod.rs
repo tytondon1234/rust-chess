@@ -27,19 +27,19 @@ pub enum Sides {
 }
 
 impl Piece {
-    pub fn legal_moves(&self, pieces: &Vec<Piece>) -> Vec<(char, u32, i32)> {
+    pub fn legal_moves(&self, pieces: &[Piece]) -> Vec<(char, u32, i32)> {
         let (col, row) = &self.location;
         let mut moves: Vec<(char, u32, i32)> = Vec::new();
 
         match self._type {
             Types::Rook => {
-                moves = self.legal_forward_moves(*row + 1, 9, moves, pieces, &col, true);
+                moves = self.legal_forward_moves(*row + 1, 9, moves, pieces, *col, true);
                 moves = self.legal_backward_moves(
                     if *row - 1 > 0 { *row } else { 0 },
                     0,
                     moves,
                     pieces,
-                    &col,
+                    *col,
                     true,
                 );
 
@@ -51,7 +51,7 @@ impl Piece {
                     7,
                     moves,
                     pieces,
-                    &row,
+                    *row,
                     true,
                 );
 
@@ -60,7 +60,7 @@ impl Piece {
                     0,
                     moves,
                     pieces,
-                    &row,
+                    *row,
                     true,
                 );
             }
@@ -68,7 +68,7 @@ impl Piece {
                 let from_row = *row + 1;
                 let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
 
-                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, &col, false);
+                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, *col, false);
 
                 let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
                 let current_col_index = cols.iter().position(|&c| c == *col).unwrap();
@@ -78,7 +78,7 @@ impl Piece {
                     if index > 0 { index - 1 } else { index },
                     moves,
                     pieces,
-                    &row,
+                    *row,
                     true,
                 );
 
@@ -87,7 +87,7 @@ impl Piece {
                     index + 1,
                     moves,
                     pieces,
-                    &row,
+                    *row,
                     true,
                 );
             }
@@ -100,7 +100,7 @@ impl Piece {
                     7,
                     moves,
                     pieces,
-                    &row,
+                    *row,
                     true,
                 );
 
@@ -109,7 +109,7 @@ impl Piece {
                     0,
                     moves,
                     pieces,
-                    &row,
+                    *row,
                     true,
                 );
 
@@ -118,7 +118,7 @@ impl Piece {
                     0,
                     moves,
                     pieces,
-                    &row,
+                    *row,
                     true,
                 );
 
@@ -127,7 +127,7 @@ impl Piece {
                     7,
                     moves,
                     pieces,
-                    &row,
+                    *row,
                     true,
                 );
             }
@@ -135,19 +135,19 @@ impl Piece {
                 let from_row = *row + 1;
                 let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
 
-                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, &col, false)
+                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, *col, false)
             }
             Types::King => {
                 let from_row = *row + 1;
                 let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
 
-                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, &col, false)
+                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, *col, false)
             }
             Types::Knight => {
                 let from_row = *row + 1;
                 let to_row = if self.has_moved { row + 2 } else { row + 3 }; // add one to the row than normal chess move to account for index 0
 
-                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, &col, false)
+                moves = self.legal_forward_moves(from_row, to_row, moves, pieces, *col, false)
             }
         }
         moves
@@ -158,8 +158,8 @@ impl Piece {
         from: u32,
         to: u32,
         mut moves: Vec<(char, u32, i32)>,
-        pieces: &Vec<Piece>,
-        col: &char,
+        pieces: &[Piece],
+        col: char,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
         for step in from..to {
@@ -172,7 +172,7 @@ impl Piece {
             let mut captured_score: i32 = 0;
             for piece in pieces.iter() {
                 let (piece_col, piece_row) = piece.location;
-                if piece_col == *col && piece_row == step {
+                if piece_col == col && piece_row == step {
                     if piece.side == self.side || !can_capture {
                         // friendly, blocked or can't capture and blocked
                         blocked = true;
@@ -186,9 +186,9 @@ impl Piece {
                 }
             }
             if !blocked && !capture {
-                moves.push((*col, step, 0));
+                moves.push((col, step, 0));
             } else if capture {
-                moves.push((*col, step, captured_score));
+                moves.push((col, step, captured_score));
                 break;
             } else {
                 break;
@@ -203,8 +203,8 @@ impl Piece {
         from: u32,
         to: u32,
         mut moves: Vec<(char, u32, i32)>,
-        pieces: &Vec<Piece>,
-        col: &char,
+        pieces: &[Piece],
+        col: char,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
         for step in (to..from).rev() {
@@ -217,7 +217,7 @@ impl Piece {
             let mut captured_score: i32 = 0;
             for piece in pieces.iter() {
                 let (piece_col, piece_row) = piece.location;
-                if piece_col == *col && piece_row == step {
+                if piece_col == col && piece_row == step {
                     if piece.side == self.side || !can_capture {
                         // friendly, blocked or can't capture and blocked
                         blocked = true;
@@ -231,9 +231,9 @@ impl Piece {
                 }
             }
             if !blocked && !capture {
-                moves.push((*col, step, 0));
+                moves.push((col, step, 0));
             } else if capture {
-                moves.push((*col, step, captured_score));
+                moves.push((col, step, captured_score));
                 break;
             } else {
                 break;
@@ -248,8 +248,8 @@ impl Piece {
         from: u32,
         to: u32,
         mut moves: Vec<(char, u32, i32)>,
-        pieces: &Vec<Piece>,
-        &row: &u32,
+        pieces: &[Piece],
+        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
         let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -296,8 +296,8 @@ impl Piece {
         from: u32,
         to: u32,
         mut moves: Vec<(char, u32, i32)>,
-        pieces: &Vec<Piece>,
-        &row: &u32,
+        pieces: &[Piece],
+        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
         let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -342,8 +342,8 @@ impl Piece {
         from: u32,
         to: u32,
         mut moves: Vec<(char, u32, i32)>,
-        pieces: &Vec<Piece>,
-        &row: &u32,
+        pieces: &[Piece],
+        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
         let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -382,7 +382,7 @@ impl Piece {
             } else {
                 break;
             }
-            running_total = running_total + 1;
+            running_total += 1;
         }
 
         moves
@@ -393,8 +393,8 @@ impl Piece {
         from: u32,
         to: u32,
         mut moves: Vec<(char, u32, i32)>,
-        pieces: &Vec<Piece>,
-        &row: &u32,
+        pieces: &[Piece],
+        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
         let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -432,7 +432,7 @@ impl Piece {
             } else {
                 break;
             }
-            running_total = running_total + 1;
+            running_total += 1;
         }
 
         moves
@@ -443,8 +443,8 @@ impl Piece {
         from: u32,
         to: u32,
         mut moves: Vec<(char, u32, i32)>,
-        pieces: &Vec<Piece>,
-        &row: &u32,
+        pieces: &[Piece],
+        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
         let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -483,7 +483,7 @@ impl Piece {
             } else {
                 break;
             }
-            running_total = running_total + 1;
+            running_total += 1;
         }
 
         moves
@@ -494,8 +494,8 @@ impl Piece {
         from: u32,
         to: u32,
         mut moves: Vec<(char, u32, i32)>,
-        pieces: &Vec<Piece>,
-        &row: &u32,
+        pieces: &[Piece],
+        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
         let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -533,7 +533,7 @@ impl Piece {
             } else {
                 break;
             }
-            running_total = running_total + 1;
+            running_total += 1;
         }
 
         moves

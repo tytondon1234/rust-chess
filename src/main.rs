@@ -2,7 +2,7 @@ pub mod board;
 pub mod piece;
 
 fn main() {
-    let board = board::create();
+    let _board = board::create();
     let mut pieces = piece::generate_all();
 
     pieces.push(piece::build(
