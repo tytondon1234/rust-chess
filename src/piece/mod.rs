@@ -31,7 +31,6 @@ pub enum Sides {
 
 impl Piece {
     pub fn legal_moves(&self, pieces: &[Piece]) -> Vec<(char, u32, i32)> {
-        let (col, row) = &self.location;
         let mut moves: Vec<(char, u32, i32)> = Vec::new();
 
         match self._type {
@@ -44,67 +43,18 @@ impl Piece {
             Types::Pawn => {
                 moves = self.legal_forward_moves(moves, pieces, false);
 
-                let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-                let current_col_index = cols.iter().position(|&c| c == *col).unwrap();
-                let index = current_col_index.try_into().unwrap();
+                moves = self.legal_diag_right_to_left_moves(moves, pieces, true);
 
-                moves = self.legal_diag_right_to_left_moves(
-                    index,
-                    if index > 0 { index - 1 } else { index },
-                    moves,
-                    pieces,
-                    *row,
-                    true,
-                );
-
-                moves = self.legal_diag_left_to_right_moves(
-                    index,
-                    index + 1,
-                    moves,
-                    pieces,
-                    *row,
-                    true,
-                );
+                moves = self.legal_diag_left_to_right_moves(moves, pieces, true);
             }
             Types::Bishop => {
-                let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-                let current_col_index = cols.iter().position(|&c| c == *col).unwrap();
+                moves = self.legal_diag_left_to_right_moves(moves, pieces, true);
 
-                moves = self.legal_diag_left_to_right_moves(
-                    current_col_index.try_into().unwrap(),
-                    7,
-                    moves,
-                    pieces,
-                    *row,
-                    true,
-                );
+                moves = self.legal_diag_right_to_left_backwards_moves(moves, pieces, true);
 
-                moves = self.legal_diag_right_to_left_backwards_moves(
-                    current_col_index.try_into().unwrap(),
-                    0,
-                    moves,
-                    pieces,
-                    *row,
-                    true,
-                );
+                moves = self.legal_diag_right_to_left_moves(moves, pieces, true);
 
-                moves = self.legal_diag_right_to_left_moves(
-                    current_col_index.try_into().unwrap(),
-                    0,
-                    moves,
-                    pieces,
-                    *row,
-                    true,
-                );
-
-                moves = self.legal_diag_left_to_right_backwards_moves(
-                    current_col_index.try_into().unwrap(),
-                    7,
-                    moves,
-                    pieces,
-                    *row,
-                    true,
-                );
+                moves = self.legal_diag_left_to_right_backwards_moves(moves, pieces, true);
             }
             Types::Queen => moves = self.legal_forward_moves(moves, pieces, false),
             Types::King => moves = self.legal_forward_moves(moves, pieces, false),
@@ -319,18 +269,34 @@ impl Piece {
 
     pub fn legal_diag_left_to_right_moves(
         &self,
-        from: u32,
-        to: u32,
         mut moves: Vec<(char, u32, i32)>,
         pieces: &[Piece],
-        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
-        let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        let start = if from < 8 { from + 1 } else { from };
+        let (col, row) = &self.location;
+
+        let cols: Vec<char> = board::cols();
+
         let mut running_total: u32 = 1;
 
-        for step in start..to + 1 {
+        let index: u32 = (cols.iter().position(|&c| c == *col).unwrap())
+            .try_into()
+            .unwrap();
+
+        let to: u32 = match &self._type {
+            Types::Pawn => {
+                if index < 8 {
+                    index + 2
+                } else {
+                    index
+                }
+            }
+            _ => 8,
+        };
+
+        let from = if index < 7 { index + 1 } else { index };
+
+        for step in from..to {
             // check if another piece exists
             // if friendly, blocked
             // if enemy, could capture
@@ -370,18 +336,25 @@ impl Piece {
 
     pub fn legal_diag_left_to_right_backwards_moves(
         &self,
-        from: u32,
-        to: u32,
         mut moves: Vec<(char, u32, i32)>,
         pieces: &[Piece],
-        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
-        let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        let start = if from < 8 { from + 1 } else { from };
+        let (col, row) = &self.location;
+
+        let cols: Vec<char> = board::cols();
+
+        let index: u32 = (cols.iter().position(|&c| c == *col).unwrap())
+            .try_into()
+            .unwrap();
+
+        let from = if index < 7 { index + 1 } else { index };
+
+        let to: u32 = 8;
+
         let mut running_total: u32 = 1;
 
-        for step in start..to + 1 {
+        for step in from..to {
             // check if another piece exists
             // if friendly, blocked
             // if enemy, could capture
@@ -420,18 +393,32 @@ impl Piece {
 
     pub fn legal_diag_right_to_left_moves(
         &self,
-        from: u32,
-        to: u32,
         mut moves: Vec<(char, u32, i32)>,
         pieces: &[Piece],
-        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
-        let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        let (col, row) = &self.location;
+
+        let cols: Vec<char> = board::cols();
 
         let mut running_total: u32 = 1;
 
-        for step in (to..from).rev() {
+        let index: u32 = (cols.iter().position(|&c| c == *col).unwrap())
+            .try_into()
+            .unwrap();
+
+        let to: u32 = match &self._type {
+            Types::Pawn => {
+                if index > 0 {
+                    index - 1
+                } else {
+                    index
+                }
+            }
+            _ => 0,
+        };
+
+        for step in (to..index).rev() {
             // check if another piece exists
             // if friendly, blocked
             // if enemy, could capture
@@ -471,16 +458,21 @@ impl Piece {
 
     pub fn legal_diag_right_to_left_backwards_moves(
         &self,
-        from: u32,
-        to: u32,
         mut moves: Vec<(char, u32, i32)>,
         pieces: &[Piece],
-        row: u32,
         can_capture: bool,
     ) -> Vec<(char, u32, i32)> {
-        let cols: Vec<char> = vec!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        let (col, row) = &self.location;
+
+        let cols: Vec<char> = board::cols();
 
         let mut running_total: u32 = 1;
+
+        let from: u32 = (cols.iter().position(|&c| c == *col).unwrap())
+            .try_into()
+            .unwrap();
+
+        let to: u32 = 0;
 
         for step in (to..from).rev() {
             // check if another piece exists
