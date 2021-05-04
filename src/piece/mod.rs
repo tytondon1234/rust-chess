@@ -35,10 +35,7 @@ impl Piece {
 
         match self._type {
             Types::Rook => {
-                moves = self.legal_forward_moves(moves, pieces, true);
-                moves = self.legal_backward_moves(moves, pieces, true);
-                moves = self.legal_left_to_right_moves(moves, pieces, true);
-                moves = self.legal_right_to_left_moves(moves, pieces, true);
+                moves = self.legal_accross_all(moves, pieces);
             }
             Types::Pawn => {
                 moves = self.legal_forward_moves(moves, pieces, false);
@@ -48,18 +45,51 @@ impl Piece {
                 moves = self.legal_diag_left_to_right_moves(moves, pieces, true);
             }
             Types::Bishop => {
-                moves = self.legal_diag_left_to_right_moves(moves, pieces, true);
-
-                moves = self.legal_diag_right_to_left_backwards_moves(moves, pieces, true);
-
-                moves = self.legal_diag_right_to_left_moves(moves, pieces, true);
-
-                moves = self.legal_diag_left_to_right_backwards_moves(moves, pieces, true);
+                moves = self.legal_diag_all(moves, pieces);
             }
-            Types::Queen => moves = self.legal_forward_moves(moves, pieces, false),
-            Types::King => moves = self.legal_forward_moves(moves, pieces, false),
-            Types::Knight => moves = self.legal_forward_moves(moves, pieces, false),
+            Types::Queen => {
+                moves = self.legal_accross_all(moves, pieces);
+
+                moves = self.legal_diag_all(moves, pieces);
+            }
+            Types::King => {
+                moves = self.legal_accross_all(moves, pieces);
+
+                moves = self.legal_diag_all(moves, pieces);
+            }
+            Types::Knight => moves = self.legal_l_moves(moves, pieces),
         }
+        moves
+    }
+
+    pub fn legal_diag_all(
+        &self,
+        mut moves: Vec<(char, u32, i32)>,
+        pieces: &[Piece],
+    ) -> Vec<(char, u32, i32)> {
+        moves = self.legal_diag_left_to_right_moves(moves, pieces, true);
+
+        moves = self.legal_diag_right_to_left_backwards_moves(moves, pieces, true);
+
+        moves = self.legal_diag_right_to_left_moves(moves, pieces, true);
+
+        moves = self.legal_diag_left_to_right_backwards_moves(moves, pieces, true);
+
+        moves
+    }
+
+    pub fn legal_accross_all(
+        &self,
+        mut moves: Vec<(char, u32, i32)>,
+        pieces: &[Piece],
+    ) -> Vec<(char, u32, i32)> {
+        moves = self.legal_forward_moves(moves, pieces, true);
+
+        moves = self.legal_backward_moves(moves, pieces, true);
+
+        moves = self.legal_left_to_right_moves(moves, pieces, true);
+
+        moves = self.legal_right_to_left_moves(moves, pieces, true);
         moves
     }
 
@@ -99,7 +129,7 @@ impl Piece {
                     } else if can_capture {
                         // enemy, can capture
                         capture = true;
-                        captured_score = self.value + piece.value;
+                        captured_score = self.value.abs() + piece.value.abs();
                         break;
                     }
                 }
@@ -125,7 +155,17 @@ impl Piece {
     ) -> Vec<(char, u32, i32)> {
         let (col, row) = &self.location;
         let to_row: u32 = if *row - 1 > 0 { *row } else { 0 };
-        for step in (0..to_row).rev() {
+        let from_row: u32 = match &self._type {
+            Types::King => {
+                if *row - 1 > 0 {
+                    *row - 1
+                } else {
+                    0
+                }
+            }
+            _ => 0,
+        };
+        for step in (from_row..to_row).rev() {
             // check if another piece exists
             // if friendly, blocked
             // if enemy, could capture (if not pawn) and is blocked
@@ -143,7 +183,7 @@ impl Piece {
                     } else if can_capture {
                         // enemy, can capture
                         capture = true;
-                        captured_score = self.value + piece.value;
+                        captured_score = self.value.abs() + piece.value.abs();
                         break;
                     }
                 }
@@ -155,6 +195,140 @@ impl Piece {
                 break;
             } else {
                 break;
+            }
+        }
+
+        moves
+    }
+
+    // Yeah...I see you knights...
+    pub fn legal_l_moves(
+        &self,
+        mut moves: Vec<(char, u32, i32)>,
+        pieces: &[Piece],
+    ) -> Vec<(char, u32, i32)> {
+        moves = self.legal_l_forward_moves(moves, pieces);
+
+        moves = self.legal_l_backward_moves(moves, pieces);
+
+        moves
+    }
+    pub fn legal_l_forward_moves(
+        &self,
+        mut moves: Vec<(char, u32, i32)>,
+        pieces: &[Piece],
+    ) -> Vec<(char, u32, i32)> {
+        let (col, row) = &self.location;
+
+        let can_move_forward: bool = if *row + 2 <= 8 { true } else { false };
+
+        if can_move_forward {
+            let forward_row: u32 = *row + 2;
+
+            let cols: Vec<char> = board::cols();
+
+            let current_col_index = cols.iter().position(|&c| c == *col).unwrap();
+
+            let unwraped_index: usize = current_col_index.try_into().unwrap(); // This feels yucky
+
+            let mut forward_l_cols = vec![];
+
+            if unwraped_index + 1 <= 8 {
+                forward_l_cols.push(cols[unwraped_index + 1]);
+            }
+
+            if unwraped_index - 1 > 0 {
+                forward_l_cols.push(cols[unwraped_index - 1]);
+            }
+
+            for col in forward_l_cols {
+                let mut capture: bool = false;
+                let mut captured_score: i32 = 0;
+                let mut blocked: bool = false;
+
+                for piece in pieces.iter() {
+                    let (piece_col, piece_row) = piece.location;
+                    if piece_col == col && piece_row == forward_row {
+                        if piece.side == self.side {
+                            // friendly, blocked
+                            blocked = true;
+                            break;
+                        } else {
+                            // enemy, can capture
+                            capture = true;
+                            captured_score = self.value.abs() + piece.value.abs();
+                            break;
+                        }
+                    }
+                }
+                if !blocked && !capture {
+                    moves.push((col, forward_row, 0));
+                } else if capture {
+                    moves.push((col, forward_row, captured_score));
+                } else {
+                    break;
+                }
+            }
+        }
+
+        moves
+    }
+
+    pub fn legal_l_backward_moves(
+        &self,
+        mut moves: Vec<(char, u32, i32)>,
+        pieces: &[Piece],
+    ) -> Vec<(char, u32, i32)> {
+        let (col, row) = &self.location;
+
+        let can_move_backward: bool = if *row - 2 > 0 { true } else { false };
+
+        if can_move_backward {
+            let backward_row: u32 = *row - 2;
+
+            let cols: Vec<char> = board::cols();
+
+            let current_col_index = cols.iter().position(|&c| c == *col).unwrap();
+
+            let unwraped_index: usize = current_col_index.try_into().unwrap(); // This feels yucky
+
+            let mut backward_l_cols = vec![];
+
+            if unwraped_index + 1 <= 8 {
+                backward_l_cols.push(cols[unwraped_index + 1]);
+            }
+
+            if unwraped_index - 1 > 0 {
+                backward_l_cols.push(cols[unwraped_index - 1]);
+            }
+
+            for col in backward_l_cols {
+                let mut capture: bool = false;
+                let mut captured_score: i32 = 0;
+                let mut blocked: bool = false;
+
+                for piece in pieces.iter() {
+                    let (piece_col, piece_row) = piece.location;
+                    if piece_col == col && piece_row == backward_row {
+                        if piece.side == self.side {
+                            // friendly, blocked
+                            blocked = true;
+                            break;
+                        } else {
+                            // enemy, can capture
+                            capture = true;
+                            captured_score = self.value.abs() + piece.value.abs();
+                            break;
+                        }
+                    }
+                }
+                if !blocked && !capture {
+                    moves.push((col, backward_row, 0));
+                } else if capture {
+                    moves.push((col, backward_row, captured_score));
+                } else {
+                    break;
+                }
             }
         }
 
@@ -181,7 +355,12 @@ impl Piece {
             unwraped_index
         };
 
-        for step in start..8 {
+        let to_row: u32 = match &self._type {
+            Types::King => start as u32 + 1,
+            _ => 8,
+        };
+
+        for step in start..to_row {
             // check if another piece exists
             // if friendly, blocked
             // if enemy, could capture (if not pawn) and is blocked
@@ -199,7 +378,7 @@ impl Piece {
                     } else if can_capture {
                         // enemy, can capture
                         capture = true;
-                        captured_score = self.value + piece.value;
+                        captured_score = self.value.abs() + piece.value.abs();
                         break;
                     }
                 }
@@ -231,7 +410,12 @@ impl Piece {
 
         let unwraped_index = current_col_index.try_into().unwrap(); // This feels yucky
 
-        for step in (0..unwraped_index).rev() {
+        let from_row: u32 = match &self._type {
+            Types::King => current_col_index as u32 - 1,
+            _ => 0,
+        };
+
+        for step in (from_row..unwraped_index).rev() {
             // check if another piece exists
             // if friendly, blocked
             // if enemy, could capture (if not pawn) and is blocked
@@ -249,7 +433,7 @@ impl Piece {
                     } else if can_capture {
                         // enemy, can capture
                         capture = true;
-                        captured_score = self.value + piece.value;
+                        captured_score = self.value.abs() + piece.value.abs();
                         break;
                     }
                 }
@@ -291,6 +475,13 @@ impl Piece {
                     index
                 }
             }
+            Types::King => {
+                if index < 8 {
+                    index + 2
+                } else {
+                    index
+                }
+            }
             _ => 8,
         };
 
@@ -314,7 +505,7 @@ impl Piece {
                     } else if can_capture {
                         // enemy, can capture
                         capture = true;
-                        captured_score = self.value + piece.value;
+                        captured_score = self.value.abs() + piece.value.abs();
                         break;
                     }
                 }
@@ -350,7 +541,16 @@ impl Piece {
 
         let from = if index < 7 { index + 1 } else { index };
 
-        let to: u32 = 8;
+        let to: u32 = match &self._type {
+            Types::King => {
+                if index < 8 {
+                    index + 2
+                } else {
+                    index
+                }
+            }
+            _ => 8,
+        };
 
         let mut running_total: u32 = 1;
 
@@ -372,7 +572,7 @@ impl Piece {
                     } else if can_capture {
                         // enemy, can capture
                         capture = true;
-                        captured_score = self.value + piece.value;
+                        captured_score = self.value.abs() + piece.value.abs();
                         break;
                     }
                 }
@@ -415,6 +615,13 @@ impl Piece {
                     index
                 }
             }
+            Types::King => {
+                if index > 0 {
+                    index - 1
+                } else {
+                    index
+                }
+            }
             _ => 0,
         };
 
@@ -436,7 +643,7 @@ impl Piece {
                     } else if can_capture {
                         // enemy, can capture
                         capture = true;
-                        captured_score = self.value + piece.value;
+                        captured_score = self.value.abs() + piece.value.abs();
                         break;
                     }
                 }
@@ -468,13 +675,22 @@ impl Piece {
 
         let mut running_total: u32 = 1;
 
-        let from: u32 = (cols.iter().position(|&c| c == *col).unwrap())
+        let to: u32 = (cols.iter().position(|&c| c == *col).unwrap())
             .try_into()
             .unwrap();
 
-        let to: u32 = 0;
+        let from: u32 = match &self._type {
+            Types::King => {
+                if to > 0 {
+                    to - 1
+                } else {
+                    to
+                }
+            }
+            _ => 0,
+        };
 
-        for step in (to..from).rev() {
+        for step in (from..to).rev() {
             // check if another piece exists
             // if friendly, blocked
             // if enemy, could capture
@@ -492,7 +708,7 @@ impl Piece {
                     } else if can_capture {
                         // enemy, can capture
                         capture = true;
-                        captured_score = self.value + piece.value;
+                        captured_score = self.value.abs() + piece.value.abs();
                         break;
                     }
                 }
@@ -526,39 +742,39 @@ pub fn generate_all() -> Vec<Piece> {
     let mut pieces: Vec<Piece> = Vec::new();
     let pieces_data: Vec<(Types, Sides, (char, u32), i32)> = vec![
         // White
-        (Types::Rook, Sides::White, ('A', 1), 50),
-        (Types::Knight, Sides::White, ('B', 1), 35),
-        (Types::Bishop, Sides::White, ('C', 1), 35),
-        (Types::Queen, Sides::White, ('D', 1), 125),
-        (Types::King, Sides::White, ('E', 1), 200),
-        (Types::Knight, Sides::White, ('F', 1), 35),
-        (Types::Bishop, Sides::White, ('G', 1), 30),
-        (Types::Rook, Sides::White, ('H', 1), 50),
-        (Types::Pawn, Sides::White, ('A', 2), 10),
-        (Types::Pawn, Sides::White, ('B', 2), 10),
-        (Types::Pawn, Sides::White, ('C', 2), 10),
-        (Types::Pawn, Sides::White, ('D', 2), 10),
-        (Types::Pawn, Sides::White, ('E', 2), 10),
-        (Types::Pawn, Sides::White, ('F', 2), 10),
-        (Types::Pawn, Sides::White, ('G', 2), 10),
-        (Types::Pawn, Sides::White, ('H', 2), 10),
+        (Types::Rook, Sides::White, ('A', 1), 5),
+        (Types::Knight, Sides::White, ('B', 1), 3),
+        (Types::Bishop, Sides::White, ('C', 1), 3),
+        (Types::Queen, Sides::White, ('D', 1), 9),
+        (Types::King, Sides::White, ('E', 1), 0),
+        (Types::Knight, Sides::White, ('F', 1), 3),
+        (Types::Bishop, Sides::White, ('G', 1), 3),
+        (Types::Rook, Sides::White, ('H', 1), 5),
+        (Types::Pawn, Sides::White, ('A', 2), 1),
+        (Types::Pawn, Sides::White, ('B', 2), 1),
+        (Types::Pawn, Sides::White, ('C', 2), 1),
+        (Types::Pawn, Sides::White, ('D', 2), 1),
+        (Types::Pawn, Sides::White, ('E', 2), 1),
+        (Types::Pawn, Sides::White, ('F', 2), 1),
+        (Types::Pawn, Sides::White, ('G', 2), 1),
+        (Types::Pawn, Sides::White, ('H', 2), 1),
         // Black
-        (Types::Rook, Sides::Black, ('A', 8), -50),
-        (Types::Knight, Sides::Black, ('B', 8), -35),
-        (Types::Bishop, Sides::Black, ('C', 8), -35),
-        (Types::Queen, Sides::Black, ('D', 8), -125),
-        (Types::King, Sides::Black, ('E', 8), -200),
-        (Types::Knight, Sides::Black, ('F', 8), -35),
-        (Types::Bishop, Sides::Black, ('G', 8), -30),
-        (Types::Rook, Sides::Black, ('H', 8), -50),
-        (Types::Pawn, Sides::Black, ('A', 7), -10),
-        (Types::Pawn, Sides::Black, ('B', 7), -10),
-        (Types::Pawn, Sides::Black, ('C', 7), -10),
-        (Types::Pawn, Sides::Black, ('D', 7), -10),
-        (Types::Pawn, Sides::Black, ('E', 7), -10),
-        (Types::Pawn, Sides::Black, ('F', 7), -10),
-        (Types::Pawn, Sides::Black, ('G', 7), -10),
-        (Types::Pawn, Sides::Black, ('H', 7), -10),
+        (Types::Rook, Sides::Black, ('A', 8), -5),
+        (Types::Knight, Sides::Black, ('B', 8), -3),
+        (Types::Bishop, Sides::Black, ('C', 8), -3),
+        (Types::Queen, Sides::Black, ('D', 8), -9),
+        (Types::King, Sides::Black, ('E', 8), -0),
+        (Types::Knight, Sides::Black, ('F', 8), -3),
+        (Types::Bishop, Sides::Black, ('G', 8), -3),
+        (Types::Rook, Sides::Black, ('H', 8), -5),
+        (Types::Pawn, Sides::Black, ('A', 7), -1),
+        (Types::Pawn, Sides::Black, ('B', 7), -1),
+        (Types::Pawn, Sides::Black, ('C', 7), -1),
+        (Types::Pawn, Sides::Black, ('D', 7), -1),
+        (Types::Pawn, Sides::Black, ('E', 7), -1),
+        (Types::Pawn, Sides::Black, ('F', 7), -1),
+        (Types::Pawn, Sides::Black, ('G', 7), -1),
+        (Types::Pawn, Sides::Black, ('H', 7), -1),
     ];
     for piece in pieces_data.iter() {
         let (_type, side, location, value) = piece;
